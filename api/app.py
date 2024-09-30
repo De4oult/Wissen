@@ -4,10 +4,12 @@ from sanic.request import Request
 from sanic_cors import CORS
 from hashlib import sha256
 from random import randint
+from json import dumps
 
 from notifier import Notifier
 from message import Message
 from database import supabase_client
+from frontend import frontend
 
 import os
 
@@ -26,7 +28,7 @@ async def register_post(request: Request) -> HTTPResponse:
 
     notifier: Notifier = Notifier(channel_id = channel_id)
 
-    response: bool = await notifier.notify(Message('info', 'Приложение зарегистрировано в Wissen'))
+    response = await notifier.notify(Message('info', 'Приложение зарегистрировано в Wissen'))
 
     if not response: 
         return json({ 'message' : 'Not valid channel_id' }, status = 400)
@@ -43,7 +45,9 @@ async def register_post(request: Request) -> HTTPResponse:
         'history_id' : history_id
     })
 
-    await notifier.notify(Message('info', f'Ваша ссылка для просмотра истории: <code>{history_id}</code>'))
+    message = await notifier.notify(Message('info', f'Ваша ссылка для просмотра истории: <a href="https://wissen.onrender.com/history?id={history_id}">https://wissen.onrender.com/history?id={history_id}</a>'))
+
+    await notifier.pin(message.message_id)
 
     return json({ 
         'message' : 'Successfully registered', 
@@ -71,14 +75,31 @@ async def notify_post(request: Request) -> HTTPResponse:
 
     return json({ 'message' : 'Successfully processed' }, status = 200)
 
+# Pages
 @app.route('/history', methods = ['GET'])
 async def history_get(request: Request) -> HTTPResponse:
-    print(request.args.get('history_id'))
+    if not request.args.get('id'): return html(frontend.page('error', { 'error_message' : 'Не указан идентификатор истории' }), status = 400)
 
-    return html() # return histroy mit alpine
+    response: list = await supabase_client.search('clients', { 'history_id' : request.args.get('id') }, 'name')
+
+    history_exists = len(response)
+
+    if not history_exists: return html(frontend.page('error', { 'error_message' : 'Недействительная ссылка на историю' }), status = 400)
+
+    history_data: list[dict] = await supabase_client.search('messages', { 'history_id' : request.args.get('id') }, '*')
+    
+    return html(frontend.page('history', { 'name' : response[0].get('name'), 'history_data' : history_data }), status = 200)
+
+@app.route('/record/<record_id:int>', methods = ['GET'])
+async def record_id_get(request: Request, record_id: int) -> HTTPResponse:
+    response: list = await supabase_client.search('messages', { 'id' : record_id }, '*')
+
+    if not len(response): return html(frontend.page('error', { 'error_message' : f'Не удалось найти сообщение с id == {record_id}' }), status = 400)
+
+    return html(frontend.page('record', { 'record_data' : response[0] }), status = 200)
 
 if __name__ == '__main__':
     app.run(
         host = '0.0.0.0', 
-        port = os.environ.get('PORT')
+        port = int(os.environ.get('PORT', 80))
     )
