@@ -1,10 +1,10 @@
 from sanic import Sanic
 from sanic.response import HTTPResponse, json, html
+from sanic.exceptions import NotFound, MethodNotAllowed
 from sanic.request import Request
 from sanic_cors import CORS
 from hashlib import sha256
 from random import randint
-from json import dumps
 
 from notifier import Notifier
 from message import Message
@@ -17,6 +17,16 @@ app = Sanic('Wissen')
 
 CORS(app)
 
+
+@app.route('/authorize', methods = ['GET'])
+async def authorize_get(request: Request) -> HTTPResponse:
+    if not request.headers.get('Authorization'): return json({ 'message' : 'Specify a api key for authorize' }, status = 400)
+
+    client_exist: int = len(await supabase_client.search('clients', { 'unique_key' : request.headers.get('Authorization') }, 'id'))
+
+    if not client_exist: return json({ 'message' : 'Invalid api key' }, status = 401)
+
+    return json({ 'message' : 'Successfully authorized' }, status = 200)
 
 @app.route('/register', methods = ['POST'])
 async def register_post(request: Request) -> HTTPResponse:
@@ -57,15 +67,16 @@ async def register_post(request: Request) -> HTTPResponse:
 
 @app.route('/notify', methods = ['POST'])
 async def notify_post(request: Request) -> HTTPResponse:
-    if not request.headers.get('Authorization'): return json({ 'message' : 'Specify a api_key for sending messages' }, status = 400)
-    if not request.json.get('type'):    return json({ 'message' : 'Specify a type of the message' }, status = 400)
+    if not request.headers.get('Authorization'): return json({ 'message' : 'Specify a api key for sending messages' }, status = 400)
+    if not request.json.get('type'): return json({ 'message' : 'Specify a type of the message' }, status = 400)
     if (not request.json.get('title')) and (not request.json.get('body')):
         return json({ 'message' : 'Specify a title or a body of the message' }, status = 400)
 
     message: Message = Message(
         request.json.get('type'),
         request.json.get('title'),
-        request.json.get('body')
+        request.json.get('body'),
+        request.json.get('language')
     )
     
     notifier: Notifier = Notifier(request.headers.get('Authorization'))
@@ -81,14 +92,14 @@ async def history_get(request: Request) -> HTTPResponse:
     if not request.args.get('id'): return html(frontend.page('error', { 'error_message' : 'Не указан идентификатор истории' }), status = 400)
 
     response: list = await supabase_client.search('clients', { 'history_id' : request.args.get('id') }, 'name')
-
+    
     history_exists = len(response)
 
     if not history_exists: return html(frontend.page('error', { 'error_message' : 'Недействительная ссылка на историю' }), status = 400)
 
     history_data: list[dict] = await supabase_client.search('messages', { 'history_id' : request.args.get('id') }, '*')
     
-    return html(frontend.page('history', { 'name' : response[0].get('name'), 'history_data' : history_data }), status = 200)
+    return html(frontend.page('history', { 'name' : response[0].get('name'), 'history_data' : sorted(history_data, key = lambda record: record.get('id'), reverse = True) }), status = 200)
 
 @app.route('/record/<record_id:int>', methods = ['GET'])
 async def record_id_get(request: Request, record_id: int) -> HTTPResponse:
@@ -97,6 +108,19 @@ async def record_id_get(request: Request, record_id: int) -> HTTPResponse:
     if not len(response): return html(frontend.page('error', { 'error_message' : f'Не удалось найти сообщение с id == {record_id}' }), status = 400)
 
     return html(frontend.page('record', { 'record_data' : response[0] }), status = 200)
+
+# Errors
+@app.exception(NotFound)
+async def not_found_exception(request: Request, exception: Exception) -> HTTPResponse:
+    return html(frontend.page('error', { 'error_message' : '404. Кажется, тут ничего нет...' })) 
+
+# @app.exception(Exception)
+# async def server_error_exception(request: Request, exception: Exception) -> HTTPResponse:
+#     return html(frontend.page('error', { 'error_message' : '500. Серверу сейчас нехорошо 🤒' })) 
+
+@app.exception(MethodNotAllowed)
+async def method_not_allowed_exception(request: Request, exception: Exception) -> HTTPResponse:
+    return html(frontend.page('error', { 'error_message' : '405. Так делать нельзя 🚧' }))
 
 if __name__ == '__main__':
     app.run(

@@ -2,13 +2,16 @@ from emoji import emojize
 
 from database import supabase_client
 
+import html
+
 class Message:
-    def __init__(self, type: str, title: str = '', body: str = '') -> None:
+    def __init__(self, type: str, title: str = '', body: str = '', language: str = 'plain') -> None:
         self.content: str = ''
 
-        self.type: str  = type
-        self.title: str = title
-        self.body: str  = body
+        self.type: str     = type
+        self.title: str    = title
+        self.body: str     = body
+        self.language: str = language
 
         match self.type.lower():
             case 'info':     self.content += emojize(':closed_mailbox_with_raised_flag:  <b>ИНФОРМАЦИЯ</b> :closed_mailbox_with_raised_flag:', variant = 'emoji_type')
@@ -24,7 +27,7 @@ class Message:
         
         if body:
             self.content += '\n\n'
-            self.content += self.body
+            self.content += f'<pre language="{language}">\n{html.escape(self.body)}\n</pre>'
 
     def __str__(self) -> str:
         return self.content
@@ -37,6 +40,7 @@ class Message:
             'type' : self.type,
             'title' : self.title,
             'body' : self.body,
+            'language' : self.language,
 
             'tg_message_id' : message_id,
             'history_id' : history_id

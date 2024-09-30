@@ -23,7 +23,7 @@ class Notifier:
     async def init(self) -> None:
         if not self.api_key: return
 
-        response: dict[str, any] = (await supabase_client.search('clients', { 'unique_key' : self.api_key }, 'channel_id, history_id'))
+        response: list[dict] = (await supabase_client.search('clients', { 'unique_key' : self.api_key }, 'channel_id, history_id'))
 
         if not len(response): return
 
@@ -44,7 +44,9 @@ class Notifier:
 
             return tg_message
             
-        except TelegramBadRequest:
+        except TelegramBadRequest as request:
+            print(request)
+
             return False
         
     async def pin(self, message_id: int) -> None:
