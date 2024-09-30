@@ -1,5 +1,0 @@
-sanic==24.6.0
-sanic_cors==2.2.0
-aiogram==3.13.1
-emoji==2.13.2
-supabase==2.8.0
