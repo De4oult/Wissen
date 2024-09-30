@@ -9,6 +9,8 @@ from notifier import Notifier
 from message import Message
 from database import supabase_client
 
+import os
+
 app = Sanic('Wissen')
 
 CORS(app)
@@ -78,5 +80,5 @@ async def history_get(request: Request) -> HTTPResponse:
 if __name__ == '__main__':
     app.run(
         host = '0.0.0.0', 
-        port = 8000
+        port = os.environ.get('PORT')
     )
