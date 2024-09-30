@@ -2,10 +2,9 @@ from aiogram import Bot
 from aiogram.enums.parse_mode import ParseMode
 from aiogram.exceptions import TelegramBadRequest
 
-from .message import Message
-from .database import supabase_client
+from message import Message
+from database import supabase_client
 
-import asyncio
 import os
 
 
