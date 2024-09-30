@@ -5,9 +5,9 @@ from sanic_cors import CORS
 from hashlib import sha256
 from random import randint
 
-from notifier import Notifier
-from message import Message
-from database import supabase_client
+from .notifier import Notifier
+from .message import Message
+from .database import supabase_client
 
 from dotenv import load_dotenv
 
