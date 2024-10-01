@@ -54,6 +54,30 @@ class API:
             }
         )
 
+    # Counters
+    def connect_counter(self, name: str, description: str = '', value: int = 0) -> int:
+        if not self.api_key: return
+
+        response = requests.post(
+            f'{ENDPOINT}/authorize_counter',
+            json = {
+                'name'        : name,
+                'description' : description,
+                'value'       : value
+            },
+            headers = {
+                'Authorization' : self.api_key,
+                'Content-Type'  : 'application/json' 
+            }
+        )
+
+        if response.status_code in [200, 201]:
+            return response.json().get('id')
+
+
+    async def get_counter(self) -> None:
+        if not self.api_key: return
+
     async def update_counter(self) -> None:
         if not self.api_key: return
 

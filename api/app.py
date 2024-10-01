@@ -86,6 +86,33 @@ async def notify_post(request: Request) -> HTTPResponse:
 
     return json({ 'message' : 'Successfully processed' }, status = 200)
 
+@app.route('/authorize_counter', methods = ['POST'])
+async def authorize_counter_post(request: Request) -> HTTPResponse:
+    if not request.headers.get('Authorization'): return json({ 'message' : 'Specify a api key for authorize counter' }, status = 400)
+    if not request.json.get('name'): return json({ 'message' : 'Specify a name of the counter' }, status = 400)
+
+    response: list = await supabase_client.search('clients', { 'unique_key' : request.headers.get('Authorization') }, 'id')
+
+    if not len(response): return json('Invalid api key', status = 401)
+
+    user_id: int = response[0].get('id')
+
+    counter: list = await supabase_client.search('counters', { 'name' : request.json.get('name'), 'user_id' : user_id }, 'id')
+    
+    if len(counter):
+        return json({ 'message': 'Counter already exists', 'id' : counter[0].get('id') }, status = 200)
+
+    await supabase_client.push('counters', {
+        'name'        : request.json.get('name'),
+        'description' : request.json.get('description', ''),
+        'value'       : request.json.get('value', 0),
+        'user_id'     : user_id
+    })
+
+    new_counter = (await supabase_client.search('counters', { 'name' : request.json.get('name'), 'user_id' : user_id }, 'id'))[0]
+    
+    return json({ 'message' : 'Counter successfully registered', 'id' : new_counter.get('id') }, status = 201)
+
 # Pages
 @app.route('/history', methods = ['GET'])
 async def history_get(request: Request) -> HTTPResponse:
@@ -93,9 +120,7 @@ async def history_get(request: Request) -> HTTPResponse:
 
     response: list = await supabase_client.search('clients', { 'history_id' : request.args.get('id') }, 'name')
     
-    history_exists = len(response)
-
-    if not history_exists: return html(frontend.page('error', { 'error_message' : 'Недействительная ссылка на историю' }), status = 400)
+    if not len(response): return html(frontend.page('error', { 'error_message' : 'Недействительная ссылка на историю' }), status = 400)
 
     history_data: list[dict] = await supabase_client.search('messages', { 'history_id' : request.args.get('id') }, '*')
     
