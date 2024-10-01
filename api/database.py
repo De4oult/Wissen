@@ -22,5 +22,8 @@ class Supabase:
 
         return self.client.table(table).select(requested_data).eq(key, value).execute().data
     
+    async def update(self, table: str, id: int, query: dict) -> None:
+        self.client.table(table).update(query).eq('id', id).execute()
+
     
 supabase_client: Supabase = Supabase()

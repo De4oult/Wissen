@@ -2,10 +2,9 @@ from enum import Enum
 
 from wissen_api import Wissen 
 
-import textwrap
-import inspect
 import functools
 import traceback
+import inspect
 
 class Handler(Enum):
     @staticmethod
@@ -36,23 +35,48 @@ class Handler(Enum):
 
         return wrapper
 
+    @staticmethod
+    def observe(func = None, *, api_instance = Wissen) -> ...:
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            try:
+                result = await func(*args, **kwargs)                
 
-@Handler.silent
-async def test():
-    a = 1 / 0
+                frame = inspect.currentframe().f_back
 
-    print(b)
+                # Перехватываем локальные переменные после завершения функции
+                locals_variables = frame.f_locals
 
-    print(10)
+                print(locals_variables)
 
-    return 15
+                return result
 
-async def main():
-    Wissen.initialize('36297319:7b4e179fd6ae700c5b62014c250aa5cda60f29831f8a19d6af88a46909e102ef')
+            except Exception as error:
+                await Wissen.send_exception(''.join(traceback.format_exception(error)))
 
-    print(await test())
+                print('Wissen has stopped program')
 
-import asyncio
+        return wrapper
 
-if __name__ == '__main__':
-    asyncio.run(main())
+
+# @Handler.observe
+# async def test():
+#     a = 10
+
+#     b = a * 2
+
+#     c = b / a
+
+#     print(c)
+
+#     return 10
+
+# async def main():
+#     # Wissen.initialize('36297319:7b4e179fd6ae700c5b62014c250aa5cda60f29831f8a19d6af88a46909e102ef')
+
+#     print(await test())
+
+# import asyncio
+
+# if __name__ == '__main__':
+#     asyncio.run(main())

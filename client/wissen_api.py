@@ -71,15 +71,35 @@ class API:
             }
         )
 
+        print(response.text)
+
         if response.status_code in [200, 201]:
             return response.json().get('id')
 
-
-    async def get_counter(self) -> None:
+    def get_counter(self, counter_id: int) -> None:
         if not self.api_key: return
 
-    async def update_counter(self) -> None:
+        response = requests.get(
+            f'{ENDPOINT}/get_counter?id={counter_id}',
+            headers = {
+                'Authorization' : self.api_key
+            }
+        )
+
+        if response.status_code == 200:
+            return response.json().get('counter')
+
+    def update_counter(self, counter_id: int, value: int) -> None:
         if not self.api_key: return
+
+        print(requests.get(
+            f'{ENDPOINT}/update_counter?id={counter_id}&value={value}',
+            headers = {
+                'Authorization' : self.api_key
+            }
+        ).text)
+        
+
 
 
 Wissen: API = API()

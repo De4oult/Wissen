@@ -113,6 +113,42 @@ async def authorize_counter_post(request: Request) -> HTTPResponse:
     
     return json({ 'message' : 'Counter successfully registered', 'id' : new_counter.get('id') }, status = 201)
 
+@app.route('/get_counter', methods = ['GET'])
+async def get_counter_get(request: Request) -> HTTPResponse:
+    if not request.headers.get('Authorization'): return json({ 'message' : 'Specify a api key for authorize counter' }, status = 400)
+    if not request.args.get('id'): return json({ 'message' : 'Specify an id of the counter' }, status = 400)
+
+    response: list = await supabase_client.search('clients', { 'unique_key' : request.headers.get('Authorization') }, 'id')
+
+    if not len(response): return json({ 'message' : 'Invalid api key' }, status = 401)
+
+    counter = await supabase_client.search('counters', { 'id' : request.args.get('id') }, '*')
+
+    if not len(counter):
+        return json({ 'message': 'Counter not exists', 'id' : request.args.get('id') }, status = 400)
+    
+    return json({ 'message' : 'Counter successfully gotten', 'counter' : counter[0] }, status = 200)
+
+@app.route('/update_counter', methods = ['GET'])
+async def update_counter_get(request: Request) -> HTTPResponse:
+    if not request.headers.get('Authorization'): return json({ 'message' : 'Specify a api key for authorize counter' }, status = 400)
+    if (not request.args.get('id')) or (not request.args.get('value')): return json({ 'message' : 'Specify an id and a value of the counter' }, status = 400)
+
+    response: list = await supabase_client.search('clients', { 'unique_key' : request.headers.get('Authorization') }, 'id')
+
+    if not len(response): return json({ 'message' : 'Invalid api key' }, status = 401)
+
+    counter = await supabase_client.search('counters', { 'id' : request.args.get('id') }, '*')
+
+    if not len(counter):
+        return json({ 'message': 'Counter not exists', 'id' : request.args.get('id') }, status = 400)
+    
+    await supabase_client.update('counters', request.args.get('id'), {
+        'value' : request.args.get('value')
+    })
+
+    return json({ 'message' : 'Counter successfully updated' }, status = 200)
+
 # Pages
 @app.route('/history', methods = ['GET'])
 async def history_get(request: Request) -> HTTPResponse:
@@ -139,9 +175,9 @@ async def record_id_get(request: Request, record_id: int) -> HTTPResponse:
 async def not_found_exception(request: Request, exception: Exception) -> HTTPResponse:
     return html(frontend.page('error', { 'error_message' : '404. Кажется, тут ничего нет...' })) 
 
-# @app.exception(Exception)
-# async def server_error_exception(request: Request, exception: Exception) -> HTTPResponse:
-#     return html(frontend.page('error', { 'error_message' : '500. Серверу сейчас нехорошо 🤒' })) 
+@app.exception(Exception)
+async def server_error_exception(request: Request, exception: Exception) -> HTTPResponse:
+    return html(frontend.page('error', { 'error_message' : '500. Серверу сейчас нехорошо 🤒' })) 
 
 @app.exception(MethodNotAllowed)
 async def method_not_allowed_exception(request: Request, exception: Exception) -> HTTPResponse:
